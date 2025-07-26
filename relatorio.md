@@ -1,192 +1,233 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 5 créditos restantes para usar o sistema de feedback AI.
+Você tem 4 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para Neelhtak2001:
 
-Nota final: **92.6/100**
+Nota final: **91.3/100**
 
-# Feedback para você, Neelhtak2001! 🚓✨
+# Feedback do seu desafio da API do Departamento de Polícia 🚓✨
 
-Olá, Neelhtak2001! Primeiro, quero te parabenizar pelo trabalho incrível que você fez até aqui! 🎉 Sua API está muito bem estruturada, com rotas, controllers e repositories organizados direitinho. Isso é fundamental para manter o código limpo e escalável, e você mandou super bem nisso! 👏
+Olá, Neelhtak2001! Que jornada incrível você fez até aqui! 🎉 Quero começar parabenizando você pela organização do projeto e pela implementação dos endpoints essenciais para os agentes e casos. Seu código está muito bem estruturado, seguindo a arquitetura modular com rotas, controllers e repositories, exatamente como esperado. Isso já é um grande diferencial! 👏
 
 ---
 
 ## 🎯 Pontos Fortes que Merecem Destaque
 
-- **Arquitetura modular:** Você separou muito bem as responsabilidades entre `routes`, `controllers` e `repositories`. Isso é essencial para manter a manutenção simples e o código fácil de entender.
-- **Implementação completa dos endpoints:** Todos os métodos HTTP (GET, POST, PUT, PATCH, DELETE) para `/agentes` e `/casos` estão implementados, o que mostra que você entendeu bem o funcionamento da API REST.
-- **Validações e tratamento de erros:** Você usou o Zod para validar os dados no PATCH de agentes, e fez validações manuais para outros campos, o que é ótimo para garantir a integridade dos dados.
-- **Filtros nos endpoints de casos:** Você implementou filtros por `status` e `agente_id` no endpoint de listagem de casos, que é um bônus importante que você conquistou! 🎉 Isso mostra seu esforço para ir além do básico.
+- Você implementou **todos os métodos HTTP** (GET, POST, PUT, PATCH, DELETE) para os recursos `/agentes` e `/casos` com uma organização clara.
+- A manipulação dos dados em memória está correta, usando arrays e funções para criar, atualizar, buscar e deletar.
+- Excelente uso do **Zod** para validação parcial no PATCH dos agentes, garantindo que o payload seja validado e que campos extras sejam rejeitados.
+- O tratamento de erros está bem feito, com status codes apropriados (400, 404, 201, 204) e mensagens claras.
+- A documentação Swagger está integrada corretamente, acessível via `/docs`.
+- Você ainda foi além e implementou filtros, ordenação e buscas por palavras-chave para os casos e agentes — um bônus valioso! 🌟
 
 ---
 
-## 🕵️‍♂️ Análise Profunda dos Pontos que Podem Melhorar
+## 🔍 Pontos de Melhoria e Análise Profunda
 
-### 1. Atualização parcial de agentes (PATCH) com payload incorreto retorna 400?
+### 1. Falhas na Validação do Payload para Casos (POST e PATCH)
 
-Você tem uma validação bem legal usando o Zod no `atualizarParcialmenteAgente`:
+Eu percebi que alguns testes relacionados à criação e atualização parcial de **casos** falharam, principalmente quando o payload estava em formato incorreto. Isso indica que sua validação de dados para o recurso `/casos` ainda precisa ser reforçada.
+
+Ao analisar o arquivo `controllers/casosController.js`, notei que você faz validações manuais simples, por exemplo:
 
 ```js
-const agentePatchSchema = z.object({
-  nome: z.string().min(1).optional(),
-  dataDeIncorporacao: z.string().refine(isDataValida).optional(),
-  cargo: z.string().min(1).optional(),
-}).strict();
+if (!titulo || !descricao || !status || !agente_id) {
+    return res.status(404).json({ message: 'Todos os campos são obrigatórios.' });
+}
+if (status !== 'aberto' && status !== 'solucionado') {
+    return res.status(404).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
+}
 ```
 
-E no controller:
+Mas aqui temos dois pontos importantes:
+
+- Você está retornando **status 404** para erros de validação de payload, quando o correto seria **status 400 (Bad Request)**, pois o recurso não está faltando, mas sim o cliente enviou dados inválidos. Isso pode confundir quem consome sua API.
+- A validação está feita de forma manual e repetitiva, o que pode levar a inconsistências e torna o código menos escalável.
+
+**Como melhorar?**
+
+Recomendo utilizar uma biblioteca de validação robusta, como você já fez com o Zod nos agentes, para validar o payload dos casos. Isso facilita a manutenção e garante mensagens de erro mais detalhadas.
+
+Por exemplo, crie um esquema Zod para o payload de criação de casos:
+
+```js
+const criarCasoSchema = z.object({
+  titulo: z.string().min(1, "O campo 'titulo' é obrigatório."),
+  descricao: z.string().min(1, "O campo 'descricao' é obrigatório."),
+  status: z.enum(['aberto', 'solucionado'], "O campo 'status' pode ser somente 'aberto' ou 'solucionado'."),
+  agente_id: z.string().uuid("O campo 'agente_id' deve ser um UUID válido.")
+});
+```
+
+E utilize esse esquema para validar o corpo da requisição no `criarCaso`:
 
 ```js
 try {
-    const dadosValidados = agentePatchSchema.parse(req.body);
-    if ('id' in req.body) {
-        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
-    }
-    if (Object.keys(dadosValidados).length === 0) {
-        return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
-    }
-    // ...
+  const dadosValidados = criarCasoSchema.parse(req.body);
+  // Verifique se o agente existe
+  const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
+  if (!agenteExiste) {
+    return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
+  }
+  const novoCaso = casosRepository.create(dadosValidados);
+  res.status(201).json(novoCaso);
 } catch (error) {
-    if (error instanceof z.ZodError) {
-        return res.status(400).json({
-            message: "Payload inválido.",
-            errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
-        });
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
+      message: "Payload inválido.",
+      errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+    });
+  }
+  res.status(500).json({ message: "Erro interno do servidor." });
+}
+```
+
+Assim, você garante que payloads mal formatados sejam rejeitados com status 400 e mensagens claras, melhorando a experiência do consumidor da API.
+
+**Recurso recomendado:**  
+👉 [Validação de dados em APIs Node.js/Express com Zod](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)  
+👉 [Status HTTP 400 - Bad Request](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/400)
+
+---
+
+### 2. Falta de Validação Estruturada no PATCH de Casos
+
+No método `atualizarParcialmenteCaso`, você também faz validações manuais:
+
+```js
+if ('id' in dados) {
+    return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+}
+
+if (dados.agente_id) {
+    const agenteExiste = agentesRepository.findById(dados.agente_id);
+    if (!agenteExiste) {
+        return res.status(400).json({ message: `Agente com id ${dados.agente_id} não encontrado.` });
     }
-    return res.status(500).json({ message: "Erro interno do servidor." });
+}
+if (dados.status && (dados.status !== 'aberto' && dados.status !== 'solucionado')) {
+    return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
 }
 ```
 
-**O que pode estar acontecendo:**  
-Se o teste espera que você retorne um status 400 quando o payload está em formato incorreto, e isso não está acontecendo, pode ser que o Zod não esteja capturando todos os casos esperados. Por exemplo, se algum campo for enviado com tipo errado, ou se o corpo estiver vazio, seu código já trata isso, mas talvez o teste envie algo que não está sendo validado pelo schema.
+Embora funcione, isso pode ser melhorado criando um esquema Zod para o PATCH, assim como fez para agentes:
 
-**Sugestão:**  
-- Verifique se o schema do Zod cobre todos os campos possíveis, inclusive se não aceita campos extras (você já usa `.strict()`, que é ótimo).
-- Garanta que o middleware `express.json()` está ativo (vi que está no `server.js`, então ok).
-- Teste manualmente enviar payloads com campos extras, tipos errados e corpo vazio para ver se o retorno é 400.
+```js
+const casoPatchSchema = z.object({
+  titulo: z.string().min(1).optional(),
+  descricao: z.string().min(1).optional(),
+  status: z.enum(['aberto', 'solucionado']).optional(),
+  agente_id: z.string().uuid().optional()
+}).strict();
+```
 
-Para entender melhor como usar o Zod para validação e tratamento de erros, recomendo este vídeo:  
-🔗 [Validação de dados em APIs Node.js/Express com Zod](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)
+E validar o corpo da requisição com esse esquema, capturando erros do Zod para retornar mensagens detalhadas e status 400.
 
 ---
 
-### 2. Criar caso com id de agente inválido/inexistente retorna 404?
+### 3. Pequena Falha no Repositório de Casos: `findAll` Recebe `options` Não Definido
 
-No seu controller de casos, na função `criarCaso`, você faz uma verificação correta se o agente existe:
+No arquivo `repositories/casosRepository.js`, na função `findAll`, você faz:
 
 ```js
-const agenteExiste = agentesRepository.findById(agente_id);
-if (!agenteExiste) {
-    return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
+function findAll() {
+    let casosFiltrados = [...casos]; 
+
+    const { status, agente_id, q } = options;
+
+    // filtros...
 }
 ```
 
-Aqui você está retornando **status 400 (Bad Request)** quando o agente não é encontrado, mas o teste espera um **status 404 (Not Found)**.
+Mas o parâmetro `options` não está declarado na assinatura da função, o que vai gerar um erro ao tentar desestruturar `options`.
 
-**Por que isso importa?**  
-- O código 400 indica que o cliente enviou uma requisição malformada.
-- O código 404 indica que o recurso referenciado (neste caso, o agente) não existe.
-
-Como o ID do agente é um recurso que você está tentando referenciar, o correto é retornar 404 para indicar que o agente não foi encontrado.
-
-**Como corrigir?**  
-Altere o retorno para:
+**Correção simples:**
 
 ```js
-if (!agenteExiste) {
-    return res.status(404).json({ message: `Agente com id ${agente_id} não encontrado.` });
+function findAll(options = {}) {
+    let casosFiltrados = [...casos]; 
+
+    const { status, agente_id, q } = options;
+
+    // filtros...
 }
 ```
 
-Essa mudança deve ser feita também em outros pontos do controller onde você verifica a existência do agente, como nas atualizações parciais e completas.
+Essa mudança garante que `options` tenha um valor padrão, evitando erros de runtime.
 
 ---
 
-### 3. Filtros e mensagens customizadas que não passaram
+### 4. Status HTTP Inadequados em Alguns Pontos
 
-Você implementou filtros básicos nos casos (`status` e `agente_id`) e ordenação simples nos agentes, o que é ótimo! Porém, os filtros mais complexos, como busca por palavras-chave nos casos, filtragem por data de incorporação dos agentes com ordenação ascendente e descendente, e mensagens de erro customizadas para argumentos inválidos, ainda não estão completos.
-
-Por exemplo, no `casosController.js`, você tem:
+Além do que já comentei sobre usar 404 para erro de payload, também notei que no método `criarCaso` você usa 404 para campos obrigatórios faltantes:
 
 ```js
-if (q) {
-    const lowerCaseQuery = q.toLowerCase();
-    casos = casos.filter(caso =>
-        caso.titulo.toLowerCase().includes(lowerCaseQuery) ||
-        caso.descricao.toLowerCase().includes(lowerCaseQuery)
-    );
+if (!titulo || !descricao || !status || !agente_id) {
+    return res.status(404).json({ message: 'Todos os campos são obrigatórios.' });
 }
 ```
 
-Mas pelos testes, parece que essa funcionalidade não está passando. Isso pode ser porque a query string `q` não está sendo tratada corretamente, ou o filtro não está sendo aplicado na camada certa.
-
-**Dica:**  
-- Confirme se o parâmetro `q` está sendo passado e tratado corretamente.
-- Teste também se o filtro funciona para palavras-chave em maiúsculas e minúsculas.
-- Para filtros mais avançados, como por data de incorporação, você pode implementar um filtro no `agentesRepository.findAll()` que aceite parâmetros para filtrar e ordenar.
+O correto é usar **400 Bad Request** para indicar que o cliente enviou dados inválidos ou incompletos. Isso ajuda a manter a semântica HTTP correta e melhora a comunicação com quem consome sua API.
 
 ---
 
-### 4. Organização da Estrutura do Projeto
+### 5. Organização e Estrutura do Projeto
 
-Pelo seu arquivo `project_structure.txt`, a estrutura está exatamente como esperada:
+Sua estrutura de diretórios está perfeita e segue o padrão esperado! Isso ajuda muito na manutenção e escalabilidade do projeto. Parabéns por manter tudo organizado:
 
 ```
 .
-├── controllers
-│   ├── agentesController.js
-│   └── casosController.js
-├── docs
-│   └── swagger.js
-├── repositories
-│   ├── agentesRepository.js
-│   └── casosRepository.js
-├── routes
-│   ├── agentesRoutes.js
-│   └── casosRoutes.js
+├── controllers/
+│   ├── agentesController.js
+│   └── casosController.js
+├── repositories/
+│   ├── agentesRepository.js
+│   └── casosRepository.js
+├── routes/
+│   ├── agentesRoutes.js
+│   └── casosRoutes.js
+├── docs/
+│   └── swagger.js
+├── utils/
+│   └── errorHandler.js
 ├── server.js
-└── utils
-    └── errorHandler.js
+├── package.json
 ```
 
-Parabéns por manter a organização impecável! Isso facilita muito a manutenção e a escalabilidade do projeto.
+---
+
+## 🚀 Resumo Rápido para Avançar
+
+- ✅ Continue usando Zod para validação, mas implemente schemas para os casos também, tanto para criação quanto para atualização parcial.
+- ✅ Corrija o `findAll` em `casosRepository` para receber `options = {}` como parâmetro.
+- ✅ Ajuste os status HTTP para usar **400 Bad Request** ao invés de 404 quando o problema for payload inválido ou dados incompletos.
+- ✅ Centralize e padronize o tratamento de erros de validação para dar mensagens claras e consistentes.
+- ✅ Mantenha a organização modular do seu projeto, que está excelente!
 
 ---
 
-## 💡 Recomendações de Aprendizado
+## 🌟 Para Finalizar
 
-- Para aprofundar seu entendimento sobre **validação e tratamento de erros** em APIs Express:  
-  https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_
+Você está muito próximo de entregar uma API robusta, bem estruturada e com uma experiência de uso excelente! Seu esforço em implementar filtros, ordenação e validações já mostra um nível avançado. Com os ajustes que sugeri, sua API vai ficar ainda mais profissional e alinhada com as melhores práticas do mercado.
 
-- Para entender melhor a **arquitetura MVC e organização de projetos Node.js**:  
-  https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH
-
-- Para dominar o uso do **Express.js e rotas**:  
-  https://expressjs.com/pt-br/guide/routing.html
-
-- Para compreender o protocolo HTTP e os códigos de status (fundamental para retornar 404 vs 400):  
-  https://youtu.be/RSZHvQomeKE?si=caHW7Ra1ce0iHg8Z
+Continue nessa pegada! 🚀 Você está indo muito bem e seu código está ficando cada vez mais sólido. Estou aqui torcendo para ver seus próximos avanços!
 
 ---
 
-## 📝 Resumo do que focar para melhorar
+## 📚 Recursos para te ajudar a evoluir ainda mais
 
-- [ ] Ajustar o status HTTP para **404 (Not Found)** ao criar ou atualizar casos com `agente_id` inválido, substituindo o 400 atual.
-- [ ] Revisar e fortalecer a validação do payload no PATCH de agentes para garantir que erros de formato retornem 400 corretamente.
-- [ ] Completar os filtros avançados para casos (busca por palavras-chave) e agentes (filtragem e ordenação por data de incorporação).
-- [ ] Implementar mensagens de erro customizadas para argumentos inválidos, para deixar a API mais amigável e profissional.
-- [ ] Testar manualmente cada endpoint com dados corretos e incorretos para garantir que os status e mensagens estão coerentes com as expectativas.
+- [Documentação oficial do Express.js sobre roteamento](https://expressjs.com/pt-br/guide/routing.html)  
+- [Validação de dados em APIs Node.js/Express com Zod](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)  
+- [Status HTTP 400 - Bad Request](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/400)  
+- [Como organizar seu projeto Node.js usando arquitetura MVC](https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH)  
 
 ---
 
-## Finalizando 🚀
+Se precisar de ajuda para implementar qualquer uma dessas melhorias, só chamar! Vamos juntos! 💪😄
 
-Neelhtak2001, seu projeto está muito bem estruturado e você já mostrou domínio dos conceitos essenciais para construir uma API RESTful robusta. Os pontos que precisam de ajuste são detalhes que fazem muita diferença na experiência do usuário da API e na qualidade do código. Com esses ajustes, sua API ficará ainda mais profissional!
-
-Continue assim, explorando as validações, o tratamento correto dos erros e os filtros avançados. Você está no caminho certo! Se precisar de ajuda, estarei por aqui para te guiar nessa jornada. 💪😊
-
-Um abraço e bons códigos! 👨‍💻👩‍💻✨
+Um abraço e sucesso nessa jornada!  
+Seu Code Buddy 🚓✨
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
