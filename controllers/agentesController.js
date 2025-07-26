@@ -1,20 +1,24 @@
-// Controllers para gerenciar agentes
-//serve para: listar, buscar por id, criar, atualizar, atualizar parcialmente e deletar agentes
-// o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de agentes
-
-
 // controllers/agentesController.js
 
-const { is } = require('zod/v4/locales');
 const agentesRepository = require('../repositories/agentesRepository');
 
-// Usa a função do repositório para listar todos
+// Função auxiliar para validar a data (pode ficar aqui ou em /utils)
+function isDataValida(data) {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(data)) return false;
+    const dataObj = new Date(data);
+    if (isNaN(dataObj.getTime())) return false;
+    if (dataObj > new Date()) return false;
+    return true;
+}
+
+// GET /agentes
 function listarAgentes(req, res) {
     const agentes = agentesRepository.findAll();
     res.status(200).json(agentes);
 }
 
-// Usa a função do repositório para buscar por ID
+// GET /agentes/:id
 function buscarAgentePorId(req, res) {
     const { id } = req.params;
     const agente = agentesRepository.findById(id);
@@ -24,49 +28,67 @@ function buscarAgentePorId(req, res) {
     res.status(200).json(agente);
 }
 
-// Usa a função do repositório para criar
+// POST /agentes
 function criarAgente(req, res) {
     const { nome, dataDeIncorporacao, cargo } = req.body;
-    
     if (!nome || !dataDeIncorporacao || !cargo) {
         return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
-    
-    // VALIDAÇÃO DETALHADA ADICIONADA AQUI
     if (!isDataValida(dataDeIncorporacao)) {
-        return res.status(400).json({ 
-            message: "Parâmetros inválidos",
-            errors: [
-                { "dataDeIncorporacao": "Campo dataDeIncorporacao deve seguir a formatação 'YYYY-MM-DD' e não pode ser uma data futura." }
-            ]
-        });
+        return res.status(400).json({ message: "Formato da dataDeIncorporacao inválido ou data no futuro." });
     }
-    
     const novoAgente = agentesRepository.create({ nome, dataDeIncorporacao, cargo });
     res.status(201).json(novoAgente);
 }
 
-// Usa a função do repositório para atualizar
+// PUT /agentes/:id (Atualização Completa)
 function atualizarAgente(req, res) {
     const { id } = req.params;
-    const agenteAtualizado = agentesRepository.update(id, req.body);
+    const dados = req.body;
+
+    //Protegendo o campo 'id'
+    if ('id' in dados) {
+        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+    }
+
+    const { nome, dataDeIncorporacao, cargo } = dados;
+    if (!nome || !dataDeIncorporacao || !cargo) {
+        return res.status(400).json({ message: 'Todos os campos são obrigatórios para atualização completa.' });
+    }
+    if (!isDataValida(dataDeIncorporacao)) {
+        return res.status(400).json({ message: "Formato da dataDeIncorporacao inválido ou data no futuro." });
+    }
+
+    const agenteAtualizado = agentesRepository.update(id, dados);
     if (!agenteAtualizado) {
         return res.status(404).json({ message: 'Agente não encontrado.' });
     }
     res.status(200).json(agenteAtualizado);
 }
 
-// O PATCH funciona da mesma forma que o PUT aqui
+// PATCH /agentes/:id (Atualização Parcial)
 function atualizarParcialmenteAgente(req, res) {
     const { id } = req.params;
-    const agenteAtualizado = agentesRepository.update(id, req.body);
+    const dados = req.body;
+
+//Protegendo o campo 'id' também no PATCH
+    if ('id' in dados) {
+        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+    }
+
+    // Valida a data, caso ela tenha sido enviada no corpo da requisição
+    if (dados.dataDeIncorporacao && !isDataValida(dados.dataDeIncorporacao)) {
+        return res.status(400).json({ message: "Formato da dataDeIncorporacao inválido ou data no futuro." });
+    }
+
+    const agenteAtualizado = agentesRepository.update(id, dados);
     if (!agenteAtualizado) {
         return res.status(404).json({ message: 'Agente não encontrado.' });
     }
     res.status(200).json(agenteAtualizado);
 }
 
-// Usa a função do repositório para remover
+// DELETE /agentes/:id
 function deletarAgente(req, res) {
     const { id } = req.params;
     const sucesso = agentesRepository.remove(id);
@@ -76,28 +98,11 @@ function deletarAgente(req, res) {
     res.status(204).send();
 }
 
-function isDataValida(data) {
-    // Regex para o formato YYYY-MM-DD
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(data)) return false;
-    
-    const dataObj = new Date(data);
-    // Checa se a data é real (ex: 2023-02-30 é inválido)
-    if (isNaN(dataObj.getTime())) return false;
-    
-    // Checa se a data não está no futuro
-    if (dataObj > new Date()) return false;
-    
-    return true;
-}
-
-
 module.exports = {
     listarAgentes,
     buscarAgentePorId,
     criarAgente,
     atualizarAgente,
     atualizarParcialmenteAgente,
-    deletarAgente,
-    isDataValida
+    deletarAgente
 };
