@@ -3,103 +3,103 @@
 // o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de casos
 
 
-const casosRepository = require('../repositories/casosRepository');// Importa o repositório de casos, os dados
-const agentesRepository = require('../repositories/agentesRepository'); // Importa o repositório de agentes, necessário para validações
+// controllers/casosController.js
 
-// GET /casos
+const casosRepository = require('../repositories/casosRepository');
+const agentesRepository = require('../repositories/agentesRepository'); // Importamos para validar o agente_id
+
+// Lista todos os casos
 function listarCasos(req, res) {
     const casos = casosRepository.findAll();
     res.status(200).json(casos);
 }
 
-// GET /casos/:id
+// Busca um caso específico pelo ID
 function buscarCasoPorId(req, res) {
     const { id } = req.params;
     const caso = casosRepository.findById(id);
-
     if (!caso) {
         return res.status(404).json({ message: 'Caso não encontrado.' });
     }
-
     res.status(200).json(caso);
 }
 
-// POST /casos
+// Cria um novo caso
 function criarCaso(req, res) {
     const { titulo, descricao, status, agente_id } = req.body;
-    const errors = [];
 
     // Validações
     if (!titulo || !descricao || !status || !agente_id) {
-        return res.status(400).json({ message: 'Todos os campos são obrigatórios: titulo, descricao, status, agente_id.' });
+        return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
     if (status !== 'aberto' && status !== 'solucionado') {
-        errors.push({ status: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'" });
+        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
     }
+    // Validação importante: verifica se o agente responsável realmente existe
     const agenteExiste = agentesRepository.findById(agente_id);
     if (!agenteExiste) {
-        errors.push({ agente_id: `Agente com id ${agente_id} não encontrado.` });
-    }
-
-    // Bônus: Resposta de erro personalizada
-    if (errors.length > 0) {
-        return res.status(400).json({
-            status: 400,
-            message: "Parâmetros inválidos",
-            errors: errors
-        });
+        return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
     }
 
     const novoCaso = casosRepository.create({ titulo, descricao, status, agente_id });
     res.status(201).json(novoCaso);
 }
 
-// PUT /casos/:id
+// Atualiza um caso por completo (PUT)
 function atualizarCaso(req, res) {
     const { id } = req.params;
     const { titulo, descricao, status, agente_id } = req.body;
 
+    // Validações
     if (!titulo || !descricao || !status || !agente_id) {
         return res.status(400).json({ message: 'Para atualização completa, todos os campos são obrigatórios.' });
     }
-     if (status !== 'aberto' && status !== 'solucionado') {
-        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'" });
+    if (status !== 'aberto' && status !== 'solucionado') {
+        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
+    }
+    const agenteExiste = agentesRepository.findById(agente_id);
+    if (!agenteExiste) {
+        return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
     }
 
     const casoAtualizado = casosRepository.update(id, { titulo, descricao, status, agente_id });
-
     if (!casoAtualizado) {
         return res.status(404).json({ message: 'Caso não encontrado.' });
     }
-
     res.status(200).json(casoAtualizado);
 }
 
-// PATCH /casos/:id
+// Atualiza um caso parcialmente (PATCH)
 function atualizarParcialmenteCaso(req, res) {
     const { id } = req.params;
-    const { status } = req.body;
+    const dadosParaAtualizar = req.body;
 
-    if (status && status !== 'aberto' && status !== 'solucionado') {
-        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'" });
+    // Se o agente_id estiver sendo atualizado, verifica se o novo agente existe
+    if (dadosParaAtualizar.agente_id) {
+        const agenteExiste = agentesRepository.findById(dadosParaAtualizar.agente_id);
+        if (!agenteExiste) {
+            return res.status(400).json({ message: `Agente com id ${dadosParaAtualizar.agente_id} não encontrado.` });
+        }
+    }
+    // Se o status estiver sendo atualizado, verifica se é válido
+    if (dadosParaAtualizar.status && dadosParaAtualizar.status !== 'aberto' && dadosParaAtualizar.status !== 'solucionado') {
+        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
     }
 
-    const casoAtualizado = casosRepository.update(id, req.body);
+    const casoAtualizado = casosRepository.update(id, dadosParaAtualizar);
     if (!casoAtualizado) {
         return res.status(404).json({ message: 'Caso não encontrado.' });
     }
     res.status(200).json(casoAtualizado);
 }
 
-// DELETE /casos/:id
+// Remove um caso
 function deletarCaso(req, res) {
     const { id } = req.params;
     const sucesso = casosRepository.remove(id);
-
     if (!sucesso) {
         return res.status(404).json({ message: 'Caso não encontrado.' });
     }
-
     res.status(204).send();
 }
 
