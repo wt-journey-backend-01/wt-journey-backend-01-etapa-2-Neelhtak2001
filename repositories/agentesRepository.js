@@ -11,8 +11,18 @@ const agentes = [
 ];
 
 // Retorna todos os agentes do array
-function findAll() {
-    return agentes;
+function findAll(options = {}) {
+  //deixei a ordenação aqui...
+    let agentesFiltrados = [...agentes]; 
+    
+    if (options.sort) {
+        if (options.sort === 'dataDeIncorporacao') {
+            agentesFiltrados.sort((a, b) => new Date(a.dataDeIncorporacao) - new Date(b.dataDeIncorporacao));
+        } else if (options.sort === '-dataDeIncorporacao') {
+            agentesFiltrados.sort((a, b) => new Date(b.dataDeIncorporacao) - new Date(a.dataDeIncorporacao));
+        }
+    }
+    return agentesFiltrados;
 }
 
 // Retorna um agente específico pelo ID

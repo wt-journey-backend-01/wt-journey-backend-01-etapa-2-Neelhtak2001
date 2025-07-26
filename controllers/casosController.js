@@ -2,9 +2,6 @@
 //serve para: listar, buscar por id, criar, atualizar, atualizar parcialmente e deletar casos
 // o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de casos
 
-
-// controllers/casosController.js
-
 // controllers/casosController.js
 
 const casosRepository = require('../repositories/casosRepository');
@@ -12,7 +9,24 @@ const agentesRepository = require('../repositories/agentesRepository');
 
 // GET /casos
 function listarCasos(req, res) {
-    const casos = casosRepository.findAll();
+    let casos = casosRepository.findAll();
+    const { status, agente_id, q } = req.query;
+
+    if (status) {
+        casos = casos.filter(caso => caso.status === status);
+    }
+    if (agente_id) {
+        casos = casos.filter(caso => caso.agente_id === agente_id);
+    }
+
+    if (q) {
+        const lowerCaseQuery = q.toLowerCase();
+        casos = casos.filter(caso =>
+            caso.titulo.toLowerCase().includes(lowerCaseQuery) ||
+            caso.descricao.toLowerCase().includes(lowerCaseQuery)
+        );
+    }
+
     res.status(200).json(casos);
 }
 
@@ -36,10 +50,8 @@ function criarCaso(req, res) {
         return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
     }
 
-    // PONTO 2 DO FEEDBACK: Garantindo que o agente_id é válido
     const agenteExiste = agentesRepository.findById(agente_id);
     if (!agenteExiste) {
-        // Retornando 400 (Bad Request), pois o erro é do cliente que enviou o ID errado.
         return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
     }
 
@@ -52,11 +64,9 @@ function atualizarCaso(req, res) {
     const { id } = req.params;
     const dados = req.body;
 
-    // PONTO 3 DO FEEDBACK: Protegendo o campo 'id'
     if ('id' in dados) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
-
     const { titulo, descricao, status, agente_id } = dados;
     if (!titulo || !descricao || !status || !agente_id) {
         return res.status(400).json({ message: 'Para atualização completa, todos os campos são obrigatórios.' });
@@ -81,7 +91,6 @@ function atualizarParcialmenteCaso(req, res) {
     const { id } = req.params;
     const dados = req.body;
 
-    // PONTO 3 DO FEEDBACK: Protegendo o campo 'id' também no PATCH
     if ('id' in dados) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
