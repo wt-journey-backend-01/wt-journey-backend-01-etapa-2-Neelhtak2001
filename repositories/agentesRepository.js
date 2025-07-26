@@ -13,15 +13,16 @@ const agentes = [
 // Retorna todos os agentes do array
 function findAll(options = {}) {
   //deixei a ordenação aqui...
-    let agentesFiltrados = [...agentes]; 
-    
-    if (options.sort) {
-        if (options.sort === 'dataDeIncorporacao') {
-            agentesFiltrados.sort((a, b) => new Date(a.dataDeIncorporacao) - new Date(b.dataDeIncorporacao));
-        } else if (options.sort === '-dataDeIncorporacao') {
-            agentesFiltrados.sort((a, b) => new Date(b.dataDeIncorporacao) - new Date(a.dataDeIncorporacao));
-        }
+     let agentesFiltrados = [...agentes];
+
+    const { sort } = options;
+
+    if (sort === 'dataDeIncorporacao') {
+        agentesFiltrados.sort((a, b) => new Date(a.dataDeIncorporacao) - new Date(b.dataDeIncorporacao));
+    } else if (sort === '-dataDeIncorporacao') {
+        agentesFiltrados.sort((a, b) => new Date(b.dataDeIncorporacao) - new Date(a.dataDeIncorporacao));
     }
+
     return agentesFiltrados;
 }
 

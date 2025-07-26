@@ -9,24 +9,7 @@ const agentesRepository = require('../repositories/agentesRepository');
 
 // GET /casos
 function listarCasos(req, res) {
-    let casos = casosRepository.findAll();
-    const { status, agente_id, q } = req.query;
-
-    if (status) {
-        casos = casos.filter(caso => caso.status === status);
-    }
-    if (agente_id) {
-        casos = casos.filter(caso => caso.agente_id === agente_id);
-    }
-
-    if (q) {
-        const lowerCaseQuery = q.toLowerCase();
-        casos = casos.filter(caso =>
-            caso.titulo.toLowerCase().includes(lowerCaseQuery) ||
-            caso.descricao.toLowerCase().includes(lowerCaseQuery)
-        );
-    }
-
+    const casos = casosRepository.findAll(req.query);
     res.status(200).json(casos);
 }
 
@@ -44,15 +27,15 @@ function buscarCasoPorId(req, res) {
 function criarCaso(req, res) {
     const { titulo, descricao, status, agente_id } = req.body;
     if (!titulo || !descricao || !status || !agente_id) {
-        return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        return res.status(404).json({ message: 'Todos os campos são obrigatórios.' });
     }
     if (status !== 'aberto' && status !== 'solucionado') {
-        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
+        return res.status(404).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'." });
     }
 
     const agenteExiste = agentesRepository.findById(agente_id);
     if (!agenteExiste) {
-        return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
+        return res.status(404).json({ message: `Agente com id ${agente_id} não encontrado.` });
     }
 
     const novoCaso = casosRepository.create({ titulo, descricao, status, agente_id });

@@ -13,7 +13,25 @@ const casos = [
 ];
 
 function findAll() {
-    return casos;
+    let casosFiltrados = [...casos]; 
+
+    const { status, agente_id, q } = options;
+
+    if (status) {
+        casosFiltrados = casosFiltrados.filter(caso => caso.status === status);
+    }
+    if (agente_id) {
+        casosFiltrados = casosFiltrados.filter(caso => caso.agente_id === agente_id);
+    }
+    if (q) {
+        const lowerCaseQuery = q.toLowerCase();
+        casosFiltrados = casosFiltrados.filter(caso =>
+            caso.titulo.toLowerCase().includes(lowerCaseQuery) ||
+            caso.descricao.toLowerCase().includes(lowerCaseQuery)
+        );
+    }
+
+    return casosFiltrados;
 }
 
 function findById(id) {

@@ -12,17 +12,17 @@ function isDataValida(data) {
     if (dataObj > new Date()) return false;
     return true;
 }
+
 const agentePatchSchema = z.object({
   nome: z.string({ invalid_type_error: "O campo 'nome' deve ser uma string." }).min(1, "O campo 'nome' não pode ser vazio.").optional(),
-  dataDeIncorporacao: z.string().refine(isDataValida, { message: "Formato da dataDeIncorporacao inválido ou data no futuro." }).optional(),
+  dataDeIncorporacao: z.string({ invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." }).refine(isDataValida, { message: "Formato da dataDeIncorporacao inválido ou data no futuro." }).optional(),
   cargo: z.string({ invalid_type_error: "O campo 'cargo' deve ser uma string." }).min(1, "O campo 'cargo' não pode ser vazio.").optional(),
-}).strict("Campos não permitidos foram enviados."); 
+}).strict("O corpo da requisição contém campos não permitidos."); // Rejeita campos extras
 
 
 // GET /agentes
 function listarAgentes(req, res) {
-    const { sort } = req.query;
-    const agentes = agentesRepository.findAll({ sort });
+    const agentes = agentesRepository.findAll(req.query);
     res.status(200).json(agentes);
 }
 
@@ -77,21 +77,14 @@ function atualizarAgente(req, res) {
 // PATCH /agentes/:id (Atualização Parcial)
 function atualizarParcialmenteAgente(req, res) {
     const { id } = req.params;
-
+    if (Object.keys(req.body).length === 0) {
+        return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
+    }
     try {
-        //Valida o corpo da requisição com o schema do Zod
-        const dadosValidados = agentePatchSchema.parse(req.body);
-
-        
+        const dadosValidados = agentePatchSchema.parse(req.body); 
         if ('id' in req.body) {
             return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
         }
-        
-        
-        if (Object.keys(dadosValidados).length === 0) {
-            return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
-        }
-
         const agenteAtualizado = agentesRepository.update(id, dadosValidados);
         if (!agenteAtualizado) {
             return res.status(404).json({ message: 'Agente não encontrado.' });
@@ -99,7 +92,7 @@ function atualizarParcialmenteAgente(req, res) {
         res.status(200).json(agenteAtualizado);
 
     } catch (error) {
-       
+        
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
