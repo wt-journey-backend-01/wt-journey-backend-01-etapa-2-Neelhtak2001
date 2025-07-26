@@ -12,7 +12,7 @@ const casos = [
     }
 ];
 
-function findAll() {
+function findAll(options = {}) {
     let casosFiltrados = [...casos]; 
 
     const { status, agente_id, q } = options;
