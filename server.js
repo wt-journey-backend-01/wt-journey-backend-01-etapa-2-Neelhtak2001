@@ -4,12 +4,12 @@ const PORT = 3000;
 
 // --- 1. Importações ---
 // Roteadores da API
-const agentesRouter = require('./routes/agentesRouter');
+const agentesRouter = require('./routes/agentesRoutes');
 const casosRouter = require('./routes/casosRoutes');
 
 // Documentação com Swagger
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./docs/swaggerDef'); // Seu arquivo de definição do Swagger
+const swaggerSpec = require('./docs/swagger.js'); // Seu arquivo de definição do Swagger
 
 // Tratador de Erros
 const errorHandler = require('./utils/errorHandler');
