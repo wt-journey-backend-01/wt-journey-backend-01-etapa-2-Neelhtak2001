@@ -1,3 +1,7 @@
+//este arquivo define as rotas para os agentes
+// Importa o módulo express e o controlador de agentes
+
+
 const express = require('express');
 const router = express.Router();
 const agentesController = require('../controllers/agentesController');

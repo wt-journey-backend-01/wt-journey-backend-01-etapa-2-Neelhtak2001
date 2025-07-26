@@ -1,3 +1,6 @@
+//este arquivo define as rotas para os casos
+// Importa o módulo express e o controlador de casos
+
 const express = require('express');
 const router = express.Router();
 const casosController = require('../controllers/casosController');

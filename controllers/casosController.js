@@ -1,5 +1,10 @@
-const casosRepository = require('../repositories/casosRepository');
-const agentesRepository = require('../repositories/agentesRepository'); // Precisamos para validar o agente_id
+// Controllers para gerenciar casos
+//serve para: listar, buscar por id, criar, atualizar, atualizar parcialmente e deletar casos
+// o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de casos
+
+
+const casosRepository = require('../repositories/casosRepository');// Importa o repositório de casos, os dados
+const agentesRepository = require('../repositories/agentesRepository'); // Importa o repositório de agentes, necessário para validações
 
 // GET /casos
 function listarCasos(req, res) {

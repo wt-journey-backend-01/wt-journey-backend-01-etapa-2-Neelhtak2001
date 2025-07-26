@@ -1,5 +1,9 @@
-const agentesRepository = require('../repositories/agentesRepository');
+// Controllers para gerenciar agentes
+//serve para: listar, buscar por id, criar, atualizar, atualizar parcialmente e deletar agentes
+// o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de agentes
 
+
+const agentesRepository = require('../repositories/agentesRepository'); // Importa o repositório de agentes, os dados
 // GET /agentes
 function listarAgentes(req, res) {
     const agentes = agentesRepository.findAll();
