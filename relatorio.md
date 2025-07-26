@@ -1,271 +1,195 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 9 créditos restantes para usar o sistema de feedback AI.
+Você tem 8 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para Neelhtak2001:
 
-Nota final: **80.3/100**
+Nota final: **13.1/100**
 
-# Feedback para Neelhtak2001 🚨👮‍♂️
+# Feedback do seu desafio da API do Departamento de Polícia 🚓👮‍♂️
 
-Olá, Neelhtak2001! Tudo bem? 😊 Primeiramente, parabéns pelo esforço e pelo trabalho entregue! 🎉 Construir uma API RESTful com Node.js e Express.js, organizando rotas, controllers e repositories, não é tarefa simples, e você fez um ótimo progresso! Vamos juntos analisar seu código para deixá-lo ainda mais robusto e alinhado com as melhores práticas, beleza? Vamos nessa! 🚀
+Olá, Neelhtak2001! Tudo bem? Primeiro, quero parabenizar você pelo empenho em estruturar sua API com Express.js e pela organização inicial do seu projeto! 🎉 Você já avançou bastante ao criar rotas, controllers e até mesmo implementar validações básicas nos seus endpoints de agentes e casos. Isso mostra que você já está no caminho certo para construir APIs robustas e escaláveis.
 
----
-
-## 🎯 Pontos Fortes que Você Mandou Muito Bem
-
-- Sua estrutura de arquivos está na linha do esperado, com pastas separadas para `routes`, `controllers` e `repositories`. Isso é fundamental para manter o código organizado e escalável. Parabéns! 👏
-  
-- Os endpoints para `/agentes` e `/casos` estão implementados com todos os métodos HTTP básicos (GET, POST, PUT, PATCH, DELETE). Isso mostra que você entendeu bem o fluxo REST.
-
-- Você fez um ótimo trabalho com validações básicas e tratamento de erros, retornando status codes corretos (como 400, 404, 201, 204) e mensagens claras para o usuário da API.
-
-- A validação do campo `status` no recurso `/casos` está muito bem feita, incluindo a resposta personalizada de erro com array de erros — isso é excelente para APIs amigáveis! 👏
-
-- Você também implementou a validação para garantir que o `agente_id` passado em `/casos` exista de fato, o que é uma ótima prática para manter a integridade dos dados.
-
-- Os métodos de repositório (`findAll`, `findById`, `create`, `update`, `remove`) estão bem organizados e funcionais, manipulando os arrays em memória como esperado.
-
-- Sobre os bônus, você tentou implementar filtros e ordenação, o que é ótimo para ir além do básico! Mesmo que não tenham passado, já é um diferencial importante.
+Também notei que você tentou implementar mensagens de erro personalizadas e que seu código está bem modularizado, o que é ótimo para manutenção. Além disso, você já usa o Swagger para documentar sua API, o que é um plus muito legal para facilitar o entendimento do seu serviço! 👏
 
 ---
 
-## 🕵️ Análise Profunda dos Pontos que Precisam de Atenção
+## Vamos destrinchar juntos os pontos onde seu código pode melhorar para que sua API funcione 100%? 🔍
 
-### 1. Validação do Payload no PATCH para Agentes
+### 1. Estrutura do projeto e organização dos arquivos
 
-Você implementou o endpoint PATCH para atualização parcial de agentes, mas percebi que o código **não valida o formato do payload** antes de tentar atualizar. Isso faz com que, se o corpo da requisição estiver mal formatado ou vazio, a API retorne status 200 com dados inválidos, quando deveria responder com 400 (Bad Request).
+Sua estrutura de diretórios está praticamente correta e organizada, com as pastas `routes`, `controllers`, `repositories` e `docs`, além do arquivo `server.js`. Isso é excelente! Só reforço que a pasta `utils` com o `errorHandler.js` está presente, mas não vi uso dele no código — isso é um ponto para você aproveitar e centralizar o tratamento de erros depois.
 
-Por exemplo, no seu `agentesController.js`:
-
-```js
-function atualizarParcialmenteAgente(req, res) {
-    const { id } = req.params;
-    const agenteAtualizado = agentesRepository.update(id, req.body);
-
-    if (!agenteAtualizado) {
-        return res.status(404).json({ message: 'Agente não encontrado.' });
-    }
-
-    res.status(200).json(agenteAtualizado);
-}
-```
-
-Aqui, você simplesmente passa o `req.body` para o repositório sem validar se ele contém dados válidos. Isso abre brechas para erros ou atualizações indesejadas.
-
-**Como melhorar?**  
-Antes de atualizar, verifique se o `req.body` tem pelo menos uma propriedade válida e que não está tentando alterar o `id` do agente (que não pode ser modificado). Algo assim:
-
-```js
-function atualizarParcialmenteAgente(req, res) {
-    const { id } = req.params;
-    const dadosParaAtualizar = req.body;
-
-    if (Object.keys(dadosParaAtualizar).length === 0) {
-        return res.status(400).json({ message: 'Payload vazio para atualização.' });
-    }
-
-    if ('id' in dadosParaAtualizar) {
-        return res.status(400).json({ message: 'Não é permitido alterar o ID do agente.' });
-    }
-
-    // Aqui você pode adicionar validações específicas para cada campo, se quiser
-
-    const agenteAtualizado = agentesRepository.update(id, dadosParaAtualizar);
-
-    if (!agenteAtualizado) {
-        return res.status(404).json({ message: 'Agente não encontrado.' });
-    }
-
-    res.status(200).json(agenteAtualizado);
-}
-```
-
-Além disso, recomendo validar os tipos e formatos dos campos que podem ser atualizados (nome, dataDeIncorporacao, cargo), para garantir que eles estejam corretos.
-
-Essa validação evita que dados inválidos ou vazios sejam aceitos, melhorando a robustez da API.
-
-👉 Para entender melhor como validar dados e tratar erros, recomendo este vídeo super didático:  
-[Validação de dados em APIs Node.js/Express](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)
+**Recomendo:** Assista este vídeo para entender melhor a arquitetura MVC e como organizar seu projeto de forma escalável:  
+https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH
 
 ---
 
-### 2. Validação do `agente_id` ao Criar um Caso
+### 2. Implementação dos Repositórios: foco na manipulação dos dados em memória
 
-Você já faz a validação do `agente_id` no `criarCaso` dentro do `casosController.js`, o que é ótimo! Porém, percebi que no método `atualizarCaso` (PUT) e no `atualizarParcialmenteCaso` (PATCH) você **não está validando se o `agente_id` passado existe**.
+Aqui encontrei um problema fundamental que está impactando diretamente o funcionamento da sua API.
 
-Exemplo no `atualizarCaso`:
+No arquivo `repositories/agentesRepository.js`, você está misturando código de controller dentro do repository. Por exemplo, funções como `listarAgentes`, `buscarAgentePorId`, `criarAgente` estão retornando respostas HTTP (`res.status(...)`) e manipulando `req` e `res` — isso não deveria estar aqui. O repository deve ser apenas uma camada para manipular os dados em memória (arrays), com funções que retornam dados ou booleanos, sem lidar com requisições ou respostas HTTP.
 
-```js
-function atualizarCaso(req, res) {
-    const { id } = req.params;
-    const { titulo, descricao, status, agente_id } = req.body;
+Além disso, percebi que as funções que deveriam manipular os dados, como `findAll()`, `findById()`, `create()`, `update()`, `remove()`, **não estão implementadas** no seu repository de agentes. Isso faz com que o controller, que chama `agentesRepository.findAll()` por exemplo, não encontre essa função e a API não funcione corretamente.
 
-    if (!titulo || !descricao || !status || !agente_id) {
-        return res.status(400).json({ message: 'Para atualização completa, todos os campos são obrigatórios.' });
-    }
-    if (status !== 'aberto' && status !== 'solucionado') {
-        return res.status(400).json({ message: "O campo 'status' pode ser somente 'aberto' ou 'solucionado'" });
-    }
+O mesmo problema ocorre no `repositories/casosRepository.js`: o arquivo está copiando funções de controller, e também está importando ele mesmo (`const casosRepository = require('../repositories/casosRepository');`), o que cria uma referência circular e impede a execução.
 
-    const casoAtualizado = casosRepository.update(id, { titulo, descricao, status, agente_id });
+#### O que você precisa fazer aqui?
 
-    if (!casoAtualizado) {
-        return res.status(404).json({ message: 'Caso não encontrado.' });
-    }
-
-    res.status(200).json(casoAtualizado);
-}
-```
-
-Aqui, falta a checagem se o `agente_id` realmente existe no repositório de agentes. Isso pode levar a casos associados a agentes inexistentes, quebrando a integridade do sistema.
-
-**Como melhorar?**  
-Adicione a validação similar à do `criarCaso`:
+- No `repositories/agentesRepository.js`, implemente as funções que manipulam o array `agentes` diretamente, como:
 
 ```js
-const agenteExiste = agentesRepository.findById(agente_id);
-if (!agenteExiste) {
-    return res.status(400).json({ message: `Agente com id ${agente_id} não encontrado.` });
+const { randomUUID } = require('crypto');
+
+const agentes = [
+  // seus agentes iniciais aqui
+];
+
+function findAll() {
+  return agentes;
 }
+
+function findById(id) {
+  return agentes.find(agente => agente.id === id);
+}
+
+function create({ nome, dataDeIncorporacao, cargo }) {
+  const novoAgente = {
+    id: randomUUID(),
+    nome,
+    dataDeIncorporacao,
+    cargo
+  };
+  agentes.push(novoAgente);
+  return novoAgente;
+}
+
+function update(id, dadosAtualizados) {
+  const index = agentes.findIndex(agente => agente.id === id);
+  if (index === -1) return null;
+  agentes[index] = { ...agentes[index], ...dadosAtualizados };
+  return agentes[index];
+}
+
+function remove(id) {
+  const index = agentes.findIndex(agente => agente.id === id);
+  if (index === -1) return false;
+  agentes.splice(index, 1);
+  return true;
+}
+
+module.exports = {
+  findAll,
+  findById,
+  create,
+  update,
+  remove
+};
 ```
 
-Faça o mesmo no PATCH, caso o `agente_id` seja enviado na requisição.
+- Faça o mesmo para o `repositories/casosRepository.js`, implementando as funções que manipulam o array de casos.
+
+- Retire do repository qualquer função que manipule `req` e `res` ou faça validações HTTP; isso deve ficar nos controllers.
+
+Essa separação é fundamental para a arquitetura funcionar e para que seus controllers consigam usar os repositories para acessar os dados.
 
 ---
 
-### 3. Validação da Data de Incorporação (`dataDeIncorporacao`)
+### 3. Uso correto dos IDs: UUIDs
 
-Vi que você aceita o campo `dataDeIncorporacao` como string, mas não está validando se o formato está correto (YYYY-MM-DD) nem se a data não está no futuro. Isso permite que o usuário crie ou atualize agentes com datas inválidas, o que não é legal.
+Notei que a penalidade apontada foi que os IDs usados para agentes e casos **não são UUIDs**. No seu array inicial de agentes, você usou strings que parecem UUIDs, mas no código de criação de novos agentes e casos, você não está gerando UUIDs para os IDs.
 
-Por exemplo, no seu `criarAgente`:
+Isso acontece porque no seu repository, a função `create()` não está implementando essa geração, ou está usando IDs simples.
+
+**Por que isso é importante?**  
+Usar UUIDs garante que seus IDs sejam únicos e seguros, além de ser um requisito do desafio.
+
+**Como corrigir?**  
+No exemplo acima, usei a função `randomUUID()` do módulo `crypto` do Node.js para gerar IDs únicos:
 
 ```js
-if (!nome || !dataDeIncorporacao || !cargo) {
-    return res.status(400).json({ message: 'Todos os campos são obrigatórios: nome, dataDeIncorporacao, cargo.' });
+const { randomUUID } = require('crypto');
+
+function create({ nome, dataDeIncorporacao, cargo }) {
+  const novoAgente = {
+    id: randomUUID(),
+    nome,
+    dataDeIncorporacao,
+    cargo
+  };
+  agentes.push(novoAgente);
+  return novoAgente;
 }
 ```
 
-Aqui você só verifica se o campo existe, não se é válido.
-
-**Como melhorar?**  
-Você pode usar uma função para validar o formato da data e se ela não é futura, como:
-
-```js
-function validarData(data) {
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(data)) return false;
-    const dataObj = new Date(data);
-    const hoje = new Date();
-    if (isNaN(dataObj.getTime())) return false;
-    if (dataObj > hoje) return false;
-    return true;
-}
-```
-
-E no controller:
-
-```js
-if (!validarData(dataDeIncorporacao)) {
-    return res.status(400).json({ message: 'Data de incorporação inválida ou no futuro.' });
-}
-```
-
-Assim, você garante que só datas válidas e coerentes sejam armazenadas.
+Faça isso também para os casos.
 
 ---
 
-### 4. Prevenção de Alteração do ID em Atualizações (PUT e PATCH)
+### 4. Validações e tratamento de erros
 
-Percebi que nos métodos de atualização (PUT e PATCH) tanto para agentes quanto para casos, você **não impede que o campo `id` seja alterado** via payload. Isso é perigoso, pois o `id` deve ser imutável e único.
+Você já começou a implementar validações legais no controller, como verificar campos obrigatórios e status code 400 para payloads inválidos — isso é ótimo! 👍
 
-Exemplo no `atualizarAgente`:
+Porém, a validação do ID agente no `casosController` está correta, mas no repository de casos não está implementada, e também falta validação para o formato UUID dos IDs recebidos.
 
-```js
-function atualizarAgente(req, res) {
-    const { id } = req.params;
-    const { nome, dataDeIncorporacao, cargo } = req.body;
+Além disso, no `repositories/agentesRepository.js`, funções como `validarDataIncorporacao` estão misturadas com funções que manipulam `req` e `res` — isso deve ser repensado para ficar mais organizado.
 
-    // Não há verificação para impedir alteração do id
-
-    // ...
-}
-```
-
-E no PATCH:
-
-```js
-function atualizarParcialmenteAgente(req, res) {
-    const { id } = req.params;
-    const agenteAtualizado = agentesRepository.update(id, req.body);
-
-    // ...
-}
-```
-
-**Como melhorar?**  
-Antes de atualizar, você pode remover o campo `id` do `req.body` ou devolver erro se o usuário tentar alterá-lo:
-
-```js
-if ('id' in req.body) {
-    return res.status(400).json({ message: 'Não é permitido alterar o ID.' });
-}
-```
-
-Isso vale para agentes e casos.
+**Dica:** Centralize as validações mais complexas em middlewares ou funções auxiliares para manter o controller limpo.
 
 ---
 
-### 5. Sobre os Filtros e Ordenações (Bônus)
+### 5. Endpoints estão implementados, mas não funcionam por causa do repository
 
-Parabéns por tentar implementar filtros, ordenação e mensagens customizadas! 🎉 No entanto, percebi que eles não estão totalmente funcionando, provavelmente porque não há endpoints dedicados para esses filtros no seu código de rotas e controllers.
+Você fez um ótimo trabalho implementando todas as rotas para `/agentes` e `/casos` com todos os métodos HTTP, e os controllers estão chamando funções do repository.
 
-Se quiser, posso te ajudar a montar esses endpoints, mas o primeiro passo é garantir que os métodos básicos estejam 100% corretos.
-
----
-
-## 📚 Recursos que Recomendo para Você
-
-- Para entender melhor a estrutura de rotas e controllers no Express:  
-  [Documentação oficial do Express sobre roteamento](https://expressjs.com/pt-br/guide/routing.html)
-
-- Para validar dados e tratar erros de forma mais robusta:  
-  [Validação de dados em APIs Node.js/Express](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_)
-
-- Para entender profundamente os status HTTP e como usá-los:  
-  [Status 400 - Bad Request](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/400)  
-  [Status 404 - Not Found](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/404)
-
-- Para aprender a manipular arrays e objetos no JavaScript, essencial para os repositórios:  
-  [Manipulação de arrays no JavaScript](https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI)
+O problema é que, como os repositories não possuem as funções de manipulação de dados (findAll, findById, create, update, remove), a API não consegue responder corretamente, e isso impede que os endpoints funcionem como esperado.
 
 ---
 
-## 🗺️ Resumo dos Pontos para Focar
+### 6. Sobre os filtros e funcionalidades bônus
 
-- 🚫 **Validação no PATCH `/agentes/:id`**: não aceite payload vazio ou mal formatado; impeça alteração do `id`.
+Você tentou implementar filtros e mensagens de erro customizadas, mas como a base (os repositories) não está funcionando, essas funcionalidades bônus não conseguiram ser validadas.
 
-- ✅ **Validação do `agente_id` em PUT e PATCH de `/casos`**: garanta que o agente existe antes de atualizar.
-
-- 📅 **Validação da `dataDeIncorporacao`**: cheque formato correto e se a data não está no futuro.
-
-- 🚫 **Impedir alteração do campo `id` em atualizações (PUT e PATCH)** para agentes e casos.
-
-- 🛠️ **Implementar filtros e ordenações com endpoints dedicados** para bônus funcionarem.
+Recomendo focar primeiro em corrigir a base da API (repositories e IDs UUID), para depois avançar nas funcionalidades extras.
 
 ---
 
-## Considerações Finais
+## Recursos que vão te ajudar muito!
 
-Neelhtak2001, você está no caminho certo! Seu código mostra que entendeu bem os conceitos essenciais de APIs RESTful com Express e está aplicando boas práticas de organização e tratamento de erros. Com as melhorias que te apontei, sua API vai ficar muito mais robusta e confiável. Continue praticando e explorando validações e boas práticas — isso faz toda a diferença! 💪😉
+- **Arquitetura MVC e organização de projetos Node.js:**  
+https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH
 
-Se precisar de ajuda para implementar qualquer um desses pontos, me chama que a gente resolve juntos! 🚀
+- **Manipulação de arrays em JavaScript (find, filter, push, splice):**  
+https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI
 
-Um abraço e continue firme nessa jornada de aprendizado! 👊✨
+- **Validação e tratamento de erros em APIs Express:**  
+https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_
+
+- **Documentação oficial do Express sobre roteamento:**  
+https://expressjs.com/pt-br/guide/routing.html
+
+- **Conceitos de UUID e geração de IDs únicos em Node.js:**  
+https://nodejs.org/api/crypto.html#cryptorandomuuid
 
 ---
 
-**Code Buddy**
+## Resumo rápido para você focar:
+
+- 🚀 **Implemente as funções do repository** para manipular os dados em memória (`findAll`, `findById`, `create`, `update`, `remove`). Não misture lógica de controller aqui!  
+- 🆔 **Garanta que os IDs gerados sejam UUIDs** usando `crypto.randomUUID()`.  
+- 🔄 **Separe claramente as responsabilidades:** repositories manipulam dados, controllers manipulam requisições/respostas.  
+- 🛠️ **Centralize validações e tratamento de erros** para deixar o código mais limpo e robusto.  
+- 📚 **Estude os recursos indicados** para fortalecer sua base em arquitetura, manipulação de dados e Express.js.  
+- 🎯 **Depois de corrigir a base, avance para os filtros e mensagens customizadas.**
+
+---
+
+Neelhtak2001, você está no caminho certo! Muitas vezes, a base da aplicação (repositories) é o alicerce que sustenta tudo o que vem depois. Quando essa base estiver sólida, seu código vai “deslanchar” e as funcionalidades vão funcionar como esperado.
+
+Continue firme! Se precisar, volte aos conceitos básicos de Express e manipulação de dados em memória, e vá ajustando passo a passo. Estou aqui na torcida pelo seu sucesso! 🚀✨
+
+Abraço forte e bons códigos! 💻👊
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
