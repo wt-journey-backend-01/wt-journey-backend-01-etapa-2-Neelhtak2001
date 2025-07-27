@@ -9,38 +9,43 @@ const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
 
 const criarCasoSchema = z.object({
-  titulo: z.string({ required_error: "O campo 'titulo' é obrigatório." }).min(1, "O campo 'titulo' não pode ser vazio."),
-  descricao: z.string({ required_error: "O campo 'descricao' é obrigatório." }).min(1, "O campo 'descricao' não pode ser vazio."),
-  status: z.enum(['aberto', 'solucionado'], { errorMap: () => ({ message: "O campo 'status' deve ser 'aberto' ou 'solucionado'." }) }),
-  agente_id: z.string({ required_error: "O campo 'agente_id' é obrigatório." }).uuid({ message: "O 'agente_id' deve ser um UUID válido." })
+  titulo: z.string({ 
+    required_error: "O campo 'titulo' é obrigatório.",
+    invalid_type_error: "O campo 'titulo' deve ser uma string."
+  }).min(1, "O campo 'titulo' não pode ser vazio."),
+  
+  descricao: z.string({ 
+    required_error: "O campo 'descricao' é obrigatório.",
+    invalid_type_error: "O campo 'descricao' deve ser uma string."
+  }).min(1, "O campo 'descricao' não pode ser vazio."),
+  
+  status: z.enum(['aberto', 'solucionado'], { 
+    errorMap: () => ({ message: "O campo 'status' deve ser 'aberto' ou 'solucionado'." })
+  }),
+  
+  agente_id: z.string({ 
+    required_error: "O campo 'agente_id' é obrigatório.",
+    invalid_type_error: "O campo 'agente_id' deve ser uma string."
+  }).uuid({ message: "O 'agente_id' deve ser um UUID válido." })
 }).strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 const casoPatchSchema = criarCasoSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 // GET /casos
 function listarCasos(req, res) {
-    // Validar parâmetros de query
     const { status, agente_id, q } = req.query;
     
+    // Validar parâmetros de query
     if (status && !['aberto', 'solucionado'].includes(status)) {
         return res.status(400).json({ 
             message: "Parâmetro 'status' inválido. Use 'aberto' ou 'solucionado'." 
         });
     }
     
-    if (agente_id) {
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
-            return res.status(400).json({ 
-                message: "Parâmetro 'agente_id' deve ser um UUID válido." 
-            });
-        }
-        // Verificar se o agente existe
-        const agenteExiste = agentesRepository.findById(agente_id);
-        if (!agenteExiste) {
-            return res.status(404).json({ 
-                message: `Agente com id ${agente_id} não encontrado.` 
-            });
-        }
+    if (agente_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
+        return res.status(400).json({ 
+            message: "Parâmetro 'agente_id' deve ser um UUID válido." 
+        });
     }
     
     const casos = casosRepository.findAll(req.query);
@@ -59,6 +64,11 @@ function buscarCasoPorId(req, res) {
 
 // POST /casos
 function criarCaso(req, res) {
+    // Verificar se o corpo da requisição está vazio
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+    }
+
     try {
         const dadosValidados = criarCasoSchema.parse(req.body);
 
@@ -85,6 +95,11 @@ function criarCaso(req, res) {
 // PUT /casos/:id (Atualização Completa)
 function atualizarCaso(req, res) {
     const { id } = req.params;
+    
+    // Verificar se o corpo da requisição está vazio
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+    }
     
     if ('id' in req.body) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
@@ -119,28 +134,21 @@ function atualizarCaso(req, res) {
 // PATCH /casos/:id (Atualização Parcial)
 function atualizarParcialmenteCaso(req, res) {
     const { id } = req.params;
-    console.log(`PATCH /casos/${id} - Payload recebido:`, JSON.stringify(req.body, null, 2));
     
     if (Object.keys(req.body).length === 0) {
-        console.log('PATCH /casos - Corpo vazio rejeitado');
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
     }
     
     if ('id' in req.body) {
-        console.log('PATCH /casos - Tentativa de alterar campo id rejeitada');
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
     
     try {
         const dadosValidados = casoPatchSchema.parse(req.body);
-        console.log('PATCH /casos - Dados validados:', dadosValidados);
         
         if (dadosValidados.agente_id) {
             const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
-            console.log('PATCH /casos - Verificação do agente:', agenteExiste ? 'Encontrado' : 'Não encontrado');
-            
             if (!agenteExiste) {
-                console.log('PATCH /casos - Retornando 404 para agente não encontrado');
                 return res.status(404).json({ 
                     message: `Agente com id ${dadosValidados.agente_id} não encontrado.` 
                 });
@@ -149,18 +157,13 @@ function atualizarParcialmenteCaso(req, res) {
         
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         if (!casoAtualizado) {
-            console.log('PATCH /casos - Caso não encontrado');
             return res.status(404).json({ message: 'Caso não encontrado.' });
         }
         
-        console.log('PATCH /casos - Caso atualizado com sucesso');
         res.status(200).json(casoAtualizado);
         
     } catch (error) {
-        console.log('PATCH /casos - Erro capturado:', error.name, error.message);
-        
         if (error instanceof z.ZodError) {
-            console.log('PATCH /casos - Detalhes do erro Zod:', error.errors);
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ 
@@ -169,7 +172,7 @@ function atualizarParcialmenteCaso(req, res) {
                 }))
             });
         }
-        console.error('PATCH /casos - Erro inesperado:', error);
+        console.error('Erro inesperado:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
