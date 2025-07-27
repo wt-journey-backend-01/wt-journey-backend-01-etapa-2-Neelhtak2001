@@ -91,7 +91,6 @@ function buscarAgentePorId(req, res) {
 
 // POST /agentes
 function criarAgente(req, res) {
-    // Verificar se o corpo da requisição está vazio
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
@@ -107,21 +106,18 @@ function criarAgente(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        console.error('Erro inesperado no POST /agentes:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
 
-// PUT /agentes/:id (Atualização Completa)
+// PUT /agentes/:id (Atualização Completa) 
 function atualizarAgente(req, res) {
     const { id } = req.params;
 
-    // Verificar se o corpo da requisição está vazio
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
 
-    //Protegendo o campo 'id'
     if ('id' in req.body) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
@@ -137,11 +133,10 @@ function atualizarAgente(req, res) {
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
-                message: "Payload inválido para atualização completa.",
+                message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        console.error('Erro inesperado no PUT /agentes:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
