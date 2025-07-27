@@ -20,6 +20,13 @@ const errorHandler = require('./utils/errorHandler');
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ADICIONE ESTE LOG TEMPORÁRIO
+app.use((req, res, next) => {
+    console.log(`🔍 ${req.method} ${req.url}`);
+    console.log('📦 Body:', req.body);
+    next();
+});
+
 // --- 3. Definição das Rotas ---
 // Rotas dos recursos da API
 app.use('/agentes', agentesRouter);
