@@ -102,9 +102,7 @@ function atualizarParcialmenteAgente(req, res) {
     }
     
     try {
-        const dadosValidados = agentePatchSchema.parse(req.body); 
-        
-        // CORREÇÃO: Usar o id da URL, não buscar agente_id no body
+        const dadosValidados = agentePatchSchema.parse(req.body);
         const agenteExiste = agentesRepository.findById(id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${id} não encontrado.` });

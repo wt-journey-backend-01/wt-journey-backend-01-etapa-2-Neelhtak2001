@@ -28,10 +28,19 @@ function listarCasos(req, res) {
         });
     }
     
-    if (agente_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
-        return res.status(400).json({ 
-            message: "Parâmetro 'agente_id' deve ser um UUID válido." 
-        });
+    if (agente_id) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
+            return res.status(400).json({ 
+                message: "Parâmetro 'agente_id' deve ser um UUID válido." 
+            });
+        }
+        // Verificar se o agente existe
+        const agenteExiste = agentesRepository.findById(agente_id);
+        if (!agenteExiste) {
+            return res.status(404).json({ 
+                message: `Agente com id ${agente_id} não encontrado.` 
+            });
+        }
     }
     
     const casos = casosRepository.findAll(req.query);
@@ -110,21 +119,28 @@ function atualizarCaso(req, res) {
 // PATCH /casos/:id (Atualização Parcial)
 function atualizarParcialmenteCaso(req, res) {
     const { id } = req.params;
+    console.log(`PATCH /casos/${id} - Payload recebido:`, JSON.stringify(req.body, null, 2));
     
     if (Object.keys(req.body).length === 0) {
+        console.log('PATCH /casos - Corpo vazio rejeitado');
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
     }
     
     if ('id' in req.body) {
+        console.log('PATCH /casos - Tentativa de alterar campo id rejeitada');
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
     
     try {
         const dadosValidados = casoPatchSchema.parse(req.body);
+        console.log('PATCH /casos - Dados validados:', dadosValidados);
         
         if (dadosValidados.agente_id) {
             const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
+            console.log('PATCH /casos - Verificação do agente:', agenteExiste ? 'Encontrado' : 'Não encontrado');
+            
             if (!agenteExiste) {
+                console.log('PATCH /casos - Retornando 404 para agente não encontrado');
                 return res.status(404).json({ 
                     message: `Agente com id ${dadosValidados.agente_id} não encontrado.` 
                 });
@@ -133,13 +149,18 @@ function atualizarParcialmenteCaso(req, res) {
         
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         if (!casoAtualizado) {
+            console.log('PATCH /casos - Caso não encontrado');
             return res.status(404).json({ message: 'Caso não encontrado.' });
         }
         
+        console.log('PATCH /casos - Caso atualizado com sucesso');
         res.status(200).json(casoAtualizado);
         
     } catch (error) {
+        console.log('PATCH /casos - Erro capturado:', error.name, error.message);
+        
         if (error instanceof z.ZodError) {
+            console.log('PATCH /casos - Detalhes do erro Zod:', error.errors);
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ 
@@ -148,7 +169,7 @@ function atualizarParcialmenteCaso(req, res) {
                 }))
             });
         }
-        console.error('Erro inesperado:', error);
+        console.error('PATCH /casos - Erro inesperado:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
