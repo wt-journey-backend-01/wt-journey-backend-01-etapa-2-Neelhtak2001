@@ -13,12 +13,27 @@ const criarCasoSchema = z.object({
   descricao: z.string({ required_error: "O campo 'descricao' é obrigatório." }).min(1, "O campo 'descricao' não pode ser vazio."),
   status: z.enum(['aberto', 'solucionado'], { errorMap: () => ({ message: "O campo 'status' deve ser 'aberto' ou 'solucionado'." }) }),
   agente_id: z.string({ required_error: "O campo 'agente_id' é obrigatório." }).uuid({ message: "O 'agente_id' deve ser um UUID válido." })
-});
+}).strict({ message: "O corpo da requisição contém campos não permitidos." });
 
-const casoPatchSchema = criarCasoSchema.partial().strict("O corpo da requisição contém campos não permitidos.");
+const casoPatchSchema = criarCasoSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 // GET /casos
 function listarCasos(req, res) {
+    // Validar parâmetros de query
+    const { status, agente_id, q } = req.query;
+    
+    if (status && !['aberto', 'solucionado'].includes(status)) {
+        return res.status(400).json({ 
+            message: "Parâmetro 'status' inválido. Use 'aberto' ou 'solucionado'." 
+        });
+    }
+    
+    if (agente_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
+        return res.status(400).json({ 
+            message: "Parâmetro 'agente_id' deve ser um UUID válido." 
+        });
+    }
+    
     const casos = casosRepository.findAll(req.query);
     res.status(200).json(casos);
 }
@@ -38,10 +53,8 @@ function criarCaso(req, res) {
     try {
         const dadosValidados = criarCasoSchema.parse(req.body);
 
-        
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
-            
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
 
@@ -50,12 +63,12 @@ function criarCaso(req, res) {
 
     } catch (error) {
         if (error instanceof z.ZodError) {
-        
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
+        console.error('Erro inesperado no POST /casos:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
@@ -64,7 +77,6 @@ function criarCaso(req, res) {
 function atualizarCaso(req, res) {
     const { id } = req.params;
     
- 
     if ('id' in req.body) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
@@ -90,6 +102,7 @@ function atualizarCaso(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
+        console.error('Erro inesperado no PUT /casos:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
