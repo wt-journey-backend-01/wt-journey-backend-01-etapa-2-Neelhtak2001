@@ -1,13 +1,10 @@
-// Controllers para gerenciar casos
-//serve para: listar, buscar por id, criar, atualizar, atualizar parcialmente e deletar casos
-// o arquvo contem as funções que manipulam as requisições HTTP e interagem com o repositório de casos
-
 // controllers/casosController.js
 
 const casosRepository = require('../repositories/casosRepository');
 const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
 
+// Schema para POST /casos
 const criarCasoSchema = z.object({
   titulo: z.string({ 
     required_error: "O campo 'titulo' é obrigatório.",
@@ -29,13 +26,13 @@ const criarCasoSchema = z.object({
   }).uuid({ message: "O 'agente_id' deve ser um UUID válido." })
 }).strict({ message: "O corpo da requisição contém campos não permitidos." });
 
+
 const casoPatchSchema = criarCasoSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 // GET /casos
 function listarCasos(req, res) {
     const { status, agente_id, q } = req.query;
     
-    // Validar parâmetros de query
     if (status && !['aberto', 'solucionado'].includes(status)) {
         return res.status(400).json({ 
             message: "Parâmetro 'status' inválido. Use 'aberto' ou 'solucionado'." 
@@ -64,37 +61,23 @@ function buscarCasoPorId(req, res) {
 
 // POST /casos
 function criarCaso(req, res) {
-    console.log('POST /casos - Body recebido:', JSON.stringify(req.body, null, 2));
-    
-    // Verificar se o corpo da requisição está vazio
     if (!req.body || Object.keys(req.body).length === 0) {
-        console.log('POST /casos - Corpo vazio detectado');
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
 
     try {
-        console.log('POST /casos - Iniciando validação com Zod...');
+       
         const dadosValidados = criarCasoSchema.parse(req.body);
-        console.log('POST /casos - Dados validados:', dadosValidados);
-
-        console.log('POST /casos - Verificando se agente existe...');
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
-        console.log('POST /casos - Resultado da busca do agente:', agenteExiste ? 'Encontrado' : 'Não encontrado');
-        
         if (!agenteExiste) {
-            console.log('POST /casos - Retornando 404 para agente não encontrado');
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
 
         const novoCaso = casosRepository.create(dadosValidados);
-        console.log('POST /casos - Caso criado com sucesso:', novoCaso.id);
         res.status(201).json(novoCaso);
 
     } catch (error) {
-        console.log('POST /casos - Erro capturado:', error.name, error.message);
-        
         if (error instanceof z.ZodError) {
-            console.log('POST /casos - Detalhes do erro Zod:', error.errors);
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
@@ -109,7 +92,6 @@ function criarCaso(req, res) {
 function atualizarCaso(req, res) {
     const { id } = req.params;
     
-    // Verificar se o corpo da requisição está vazio
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
@@ -119,13 +101,12 @@ function atualizarCaso(req, res) {
     }
 
     try {
+        
         const dadosValidados = criarCasoSchema.parse(req.body);
-
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
-
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         if (!casoAtualizado) {
             return res.status(404).json({ message: 'Caso não encontrado.' });
@@ -134,6 +115,7 @@ function atualizarCaso(req, res) {
 
     } catch (error) {
         if (error instanceof z.ZodError) {
+            // Retorna 400 em caso de payload com formato incorreto
             return res.status(400).json({
                 message: "Payload inválido para atualização completa.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
@@ -157,8 +139,12 @@ function atualizarParcialmenteCaso(req, res) {
     }
     
     try {
+        // Pré-verificação
+        const casoExiste = casosRepository.findById(id);
+        if (!casoExiste) {
+            return res.status(404).json({ message: 'Caso não encontrado.' });
+        }
         const dadosValidados = casoPatchSchema.parse(req.body);
-        
         if (dadosValidados.agente_id) {
             const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
             if (!agenteExiste) {
@@ -167,12 +153,7 @@ function atualizarParcialmenteCaso(req, res) {
                 });
             }
         }
-        
         const casoAtualizado = casosRepository.update(id, dadosValidados);
-        if (!casoAtualizado) {
-            return res.status(404).json({ message: 'Caso não encontrado.' });
-        }
-        
         res.status(200).json(casoAtualizado);
         
     } catch (error) {

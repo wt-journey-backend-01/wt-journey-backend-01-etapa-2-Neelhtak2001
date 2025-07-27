@@ -3,17 +3,21 @@
 //zod
 const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
+
+// FUNÇÃO CORRIGIDA: Validação de data mais robusta
 function isDataValida(data) {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(data)) return false;
-    
-    const dataObj = new Date(data);
-    if (isNaN(dataObj.getTime())) return false;
-    
+    if (!regex.test(data)) return false; // Mantém a verificação de formato
+
+    const dataObj = new Date(data + 'T00:00:00Z'); 
+    if (dataObj.toISOString().slice(0, 10) !== data) {
+        return false;
+    }
+
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    dataObj.setHours(0, 0, 0, 0);
-    
+    hoje.setHours(0, 0, 0, 0); // Normaliza a data de hoje para comparar apenas o dia
+
+    // Garante que a data de incorporação não seja no futuro
     return dataObj <= hoje;
 }
 
@@ -28,7 +32,7 @@ const agenteSchema = z.object({
     required_error: "O campo 'dataDeIncorporacao' é obrigatório.",
     invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." 
   }).refine(isDataValida, { 
-    message: "Formato da dataDeIncorporacao inválido ou data no futuro." 
+    message: "Formato da dataDeIncorporacao inválido, data inválida ou data no futuro." // Mensagem de erro melhorada
   }),
   
   cargo: z.string({ 
@@ -47,7 +51,7 @@ const agentePatchSchema = z.object({
     required_error: "O campo 'dataDeIncorporacao' é obrigatório.",
     invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." 
   }).refine(isDataValida, { 
-    message: "Formato da dataDeIncorporacao inválido ou data no futuro." 
+    message: "Formato da dataDeIncorporacao inválido, data inválida ou data no futuro." // Mensagem de erro melhorada
   }).optional(),
   
   cargo: z.string({ 
@@ -61,14 +65,12 @@ const agentePatchSchema = z.object({
 function listarAgentes(req, res) {
     const { sort, cargo } = req.query;
     
-    // Validar parâmetro de ordenação
     if (sort && !['dataDeIncorporacao', '-dataDeIncorporacao'].includes(sort)) {
         return res.status(400).json({ 
             message: "Parâmetro 'sort' inválido. Use 'dataDeIncorporacao' ou '-dataDeIncorporacao'." 
         });
     }
     
-    // Validar cargo (se implementado)
     if (cargo && !['inspetor', 'delegado', 'investigador'].includes(cargo)) {
         return res.status(400).json({ 
             message: "Parâmetro 'cargo' inválido. Use 'inspetor', 'delegado' ou 'investigador'." 
@@ -145,27 +147,25 @@ function atualizarAgente(req, res) {
 function atualizarParcialmenteAgente(req, res) {
     const { id } = req.params;
     
-    // Verificar se o corpo da requisição está vazio
     if (Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
     }
     
-    // Verificar se está tentando alterar o campo id
     if ('id' in req.body) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
     
     try {
+        // Valida o corpo da requisição com o schema de patch
         const dadosValidados = agentePatchSchema.parse(req.body);
+
+        // Verifica primeiro se o agente que se deseja atualizar existe
         const agenteExiste = agentesRepository.findById(id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${id} não encontrado.` });
         }
 
         const agenteAtualizado = agentesRepository.update(id, dadosValidados);
-        if (!agenteAtualizado) {
-            return res.status(404).json({ message: 'Agente não encontrado.' });
-        }
         res.status(200).json(agenteAtualizado);
 
     } catch (error) {
@@ -175,9 +175,7 @@ function atualizarParcialmenteAgente(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        // Log do erro para debugging
         console.error('Erro inesperado:', error);
-        // Para outros erros inesperados
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
