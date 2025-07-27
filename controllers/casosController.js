@@ -23,6 +23,7 @@ function buscarCasoPorId(req, res) {
     res.status(200).json(caso);
 }
 
+// POST /casos
 function criarCaso(req, res) {
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
@@ -30,25 +31,32 @@ function criarCaso(req, res) {
 
     try {
         const dadosValidados = casoSchema.parse(req.body);
+        
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
+
         const novoCaso = casosRepository.create(dadosValidados);
         res.status(201).json(novoCaso);
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
             });
         }
-        console.error('Erro inesperado em criarCaso:', error);
-        return res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
+        return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
 
+// PUT /casos/:id
 function atualizarCaso(req, res) {
+    const { id } = req.params;
+    
     if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
@@ -59,25 +67,32 @@ function atualizarCaso(req, res) {
 
     try {
         const dadosValidados = casoSchema.parse(req.body);
+
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
-        const casoAtualizado = casosRepository.update(req.params.id, dadosValidados);
-        if (!casoAtualizado) return res.status(404).json({ message: 'Caso não encontrado.' });
+
+        const casoAtualizado = casosRepository.update(id, dadosValidados);
+        if (!casoAtualizado) {
+            return res.status(404).json({ message: 'Caso não encontrado.' });
+        }
         res.status(200).json(casoAtualizado);
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
             });
         }
-        console.error('Erro inesperado em atualizarCaso:', error);
-        return res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
+        return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
 
+// PATCH /casos/:id
 function atualizarParcialmenteCaso(req, res) {
     if (Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
@@ -100,11 +115,13 @@ function atualizarParcialmenteCaso(req, res) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
             });
         }
-        console.error('Erro inesperado em atualizarParcialmenteCaso:', error);
-        return res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
+        return res.status(500).json({ message: 'Erro interno do servidor.' });
     }
 }
 

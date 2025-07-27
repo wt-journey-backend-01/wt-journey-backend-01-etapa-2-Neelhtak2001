@@ -51,7 +51,10 @@ function criarAgente(req, res) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
             });
         }
         return res.status(500).json({ message: "Erro interno do servidor." });
@@ -79,13 +82,16 @@ function atualizarAgente(req, res) {
         }
         res.status(200).json(agenteAtualizado);
     } catch (error) {
-        console.log('PUT ERRO:', error.name, error.constructor.name);
-        
-        // Forçar 400 independente do tipo de erro
-        return res.status(400).json({
-            message: "Payload inválido.",
-            debug_error: error.message
-        });
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({
+                message: "Payload inválido.",
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
+            });
+        }
+        return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
 
@@ -108,7 +114,10 @@ function atualizarParcialmenteAgente(req, res) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.issues ? error.issues.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                })) : []
             });
         }
         return res.status(500).json({ message: 'Erro interno do servidor.' });
