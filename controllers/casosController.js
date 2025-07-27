@@ -64,24 +64,37 @@ function buscarCasoPorId(req, res) {
 
 // POST /casos
 function criarCaso(req, res) {
+    console.log('POST /casos - Body recebido:', JSON.stringify(req.body, null, 2));
+    
     // Verificar se o corpo da requisição está vazio
     if (!req.body || Object.keys(req.body).length === 0) {
+        console.log('POST /casos - Corpo vazio detectado');
         return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
     }
 
     try {
+        console.log('POST /casos - Iniciando validação com Zod...');
         const dadosValidados = criarCasoSchema.parse(req.body);
+        console.log('POST /casos - Dados validados:', dadosValidados);
 
+        console.log('POST /casos - Verificando se agente existe...');
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
+        console.log('POST /casos - Resultado da busca do agente:', agenteExiste ? 'Encontrado' : 'Não encontrado');
+        
         if (!agenteExiste) {
+            console.log('POST /casos - Retornando 404 para agente não encontrado');
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
 
         const novoCaso = casosRepository.create(dadosValidados);
+        console.log('POST /casos - Caso criado com sucesso:', novoCaso.id);
         res.status(201).json(novoCaso);
 
     } catch (error) {
+        console.log('POST /casos - Erro capturado:', error.name, error.message);
+        
         if (error instanceof z.ZodError) {
+            console.log('POST /casos - Detalhes do erro Zod:', error.errors);
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))

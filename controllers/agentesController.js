@@ -3,14 +3,18 @@
 //zod
 const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
-// Função auxiliar para validar a data (pode ficar aqui ou em /utils)
 function isDataValida(data) {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     if (!regex.test(data)) return false;
+    
     const dataObj = new Date(data);
     if (isNaN(dataObj.getTime())) return false;
-    if (dataObj > new Date()) return false;
-    return true;
+    
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    dataObj.setHours(0, 0, 0, 0);
+    
+    return dataObj <= hoje;
 }
 
 // Schema para POST e PUT (todos os campos obrigatórios)

@@ -18,7 +18,7 @@ const errorHandler = require('./utils/errorHandler');
 // --- 2. Middlewares Gerais ---
 // Middleware para o Express entender JSON
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 
 // --- 3. Definição das Rotas ---
 // Rotas dos recursos da API
