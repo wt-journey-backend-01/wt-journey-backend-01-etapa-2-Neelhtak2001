@@ -14,10 +14,23 @@ function isDataValida(data) {
 }
 
 const agentePatchSchema = z.object({
-  nome: z.string({ invalid_type_error: "O campo 'nome' deve ser uma string." }).min(1, "O campo 'nome' não pode ser vazio.").optional(),
-  dataDeIncorporacao: z.string({ invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." }).refine(isDataValida, { message: "Formato da dataDeIncorporacao inválido ou data no futuro." }).optional(),
-  cargo: z.string({ invalid_type_error: "O campo 'cargo' deve ser uma string." }).min(1, "O campo 'cargo' não pode ser vazio.").optional(),
-}).strict("O corpo da requisição contém campos não permitidos."); // Rejeita campos extras
+  nome: z.string({ 
+    required_error: "O campo 'nome' é obrigatório.",
+    invalid_type_error: "O campo 'nome' deve ser uma string." 
+  }).min(1, "O campo 'nome' não pode ser vazio.").optional(),
+  
+  dataDeIncorporacao: z.string({ 
+    required_error: "O campo 'dataDeIncorporacao' é obrigatório.",
+    invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." 
+  }).refine(isDataValida, { 
+    message: "Formato da dataDeIncorporacao inválido ou data no futuro." 
+  }).optional(),
+  
+  cargo: z.string({ 
+    required_error: "O campo 'cargo' é obrigatório.",
+    invalid_type_error: "O campo 'cargo' deve ser uma string." 
+  }).min(1, "O campo 'cargo' não pode ser vazio.").optional(),
+}).strict({ message: "O corpo da requisição contém campos não permitidos." }); // Rejeita campos extras
 
 
 // GET /agentes
@@ -77,14 +90,25 @@ function atualizarAgente(req, res) {
 // PATCH /agentes/:id (Atualização Parcial)
 function atualizarParcialmenteAgente(req, res) {
     const { id } = req.params;
+    
+    // Verificar se o corpo da requisição está vazio
     if (Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
     }
+    
+    // Verificar se está tentando alterar o campo id
+    if ('id' in req.body) {
+        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+    }
+    
     try {
         const dadosValidados = agentePatchSchema.parse(req.body); 
-        if ('id' in req.body) {
-            return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+        
+        const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
+        if (!agenteExiste) {
+            return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
+
         const agenteAtualizado = agentesRepository.update(id, dadosValidados);
         if (!agenteAtualizado) {
             return res.status(404).json({ message: 'Agente não encontrado.' });
@@ -92,13 +116,14 @@ function atualizarParcialmenteAgente(req, res) {
         res.status(200).json(agenteAtualizado);
 
     } catch (error) {
-        
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
+        // Log do erro para debugging
+        console.error('Erro inesperado:', error);
         // Para outros erros inesperados
         return res.status(500).json({ message: "Erro interno do servidor." });
     }

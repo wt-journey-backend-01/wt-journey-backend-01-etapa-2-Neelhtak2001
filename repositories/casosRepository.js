@@ -13,8 +13,7 @@ const casos = [
 ];
 
 function findAll(options = {}) {
-    let casosFiltrados = [...casos]; 
-
+    let casosFiltrados = [...casos];
     const { status, agente_id, q } = options;
 
     if (status) {
@@ -23,6 +22,7 @@ function findAll(options = {}) {
     if (agente_id) {
         casosFiltrados = casosFiltrados.filter(caso => caso.agente_id === agente_id);
     }
+    
     if (q) {
         const lowerCaseQuery = q.toLowerCase();
         casosFiltrados = casosFiltrados.filter(caso =>

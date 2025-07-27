@@ -97,37 +97,45 @@ function atualizarCaso(req, res) {
 // PATCH /casos/:id (Atualização Parcial)
 function atualizarParcialmenteCaso(req, res) {
     const { id } = req.params;
-
+    
     if (Object.keys(req.body).length === 0) {
         return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
     }
+    
     if ('id' in req.body) {
         return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
     }
-
+    
     try {
         const dadosValidados = casoPatchSchema.parse(req.body);
-
+        
         if (dadosValidados.agente_id) {
             const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
             if (!agenteExiste) {
-                return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
+                return res.status(404).json({ 
+                    message: `Agente com id ${dadosValidados.agente_id} não encontrado.` 
+                });
             }
         }
-
+        
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         if (!casoAtualizado) {
             return res.status(404).json({ message: 'Caso não encontrado.' });
         }
+        
         res.status(200).json(casoAtualizado);
-
+        
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
-                errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+                errors: error.errors.map(e => ({ 
+                    field: e.path.join('.'), 
+                    message: e.message 
+                }))
             });
         }
+        console.error('Erro inesperado:', error);
         return res.status(500).json({ message: "Erro interno do servidor." });
     }
 }
