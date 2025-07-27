@@ -1,11 +1,9 @@
-// controllers/casosController.js
-
 const casosRepository = require('../repositories/casosRepository');
 const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
 
-// Schema para POST /casos
-const criarCasoSchema = z.object({
+// Schema para POST e PUT
+const casoSchema = z.object({
   titulo: z.string({ 
     required_error: "O campo 'titulo' é obrigatório.",
     invalid_type_error: "O campo 'titulo' deve ser uma string."
@@ -26,25 +24,11 @@ const criarCasoSchema = z.object({
   }).uuid({ message: "O 'agente_id' deve ser um UUID válido." })
 }).strict({ message: "O corpo da requisição contém campos não permitidos." });
 
-
-const casoPatchSchema = criarCasoSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
+// Schema para PATCH
+const casoPatchSchema = casoSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 // GET /casos
 function listarCasos(req, res) {
-    const { status, agente_id, q } = req.query;
-    
-    if (status && !['aberto', 'solucionado'].includes(status)) {
-        return res.status(400).json({ 
-            message: "Parâmetro 'status' inválido. Use 'aberto' ou 'solucionado'." 
-        });
-    }
-    
-    if (agente_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(agente_id)) {
-        return res.status(400).json({ 
-            message: "Parâmetro 'agente_id' deve ser um UUID válido." 
-        });
-    }
-    
     const casos = casosRepository.findAll(req.query);
     res.status(200).json(casos);
 }
@@ -60,14 +44,15 @@ function buscarCasoPorId(req, res) {
 }
 
 // POST /casos
-function criarCaso(req, res) {
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
-    }
-
+function criarCaso(req, res, next) {
     try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+        }
+        
        
-        const dadosValidados = criarCasoSchema.parse(req.body);
+        const dadosValidados = casoSchema.parse(req.body);
+
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
@@ -83,30 +68,28 @@ function criarCaso(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        console.error('Erro inesperado no POST /casos:', error);
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        next(error);
     }
 }
 
 // PUT /casos/:id (Atualização Completa)
-function atualizarCaso(req, res) {
-    const { id } = req.params;
-    
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
-    }
-    
-    if ('id' in req.body) {
-        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
-    }
-
+function atualizarCaso(req, res, next) {
     try {
-        
-        const dadosValidados = criarCasoSchema.parse(req.body);
+        const { id } = req.params;
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+        }
+        if ('id' in req.body) {
+            return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+        }
+
+        const dadosValidados = casoSchema.parse(req.body);
+
         const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${dadosValidados.agente_id} não encontrado.` });
         }
+
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         if (!casoAtualizado) {
             return res.status(404).json({ message: 'Caso não encontrado.' });
@@ -115,36 +98,33 @@ function atualizarCaso(req, res) {
 
     } catch (error) {
         if (error instanceof z.ZodError) {
-            // Retorna 400 em caso de payload com formato incorreto
             return res.status(400).json({
                 message: "Payload inválido para atualização completa.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        console.error('Erro inesperado no PUT /casos:', error);
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        next(error);
     }
 }
 
 // PATCH /casos/:id (Atualização Parcial)
-function atualizarParcialmenteCaso(req, res) {
-    const { id } = req.params;
-    
-    if (Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
-    }
-    
-    if ('id' in req.body) {
-        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
-    }
-    
+function atualizarParcialmenteCaso(req, res, next) {
     try {
-        // Pré-verificação
+        const { id } = req.params;
+        if (Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
+        }
+        if ('id' in req.body) {
+            return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+        }
+        
         const casoExiste = casosRepository.findById(id);
         if (!casoExiste) {
             return res.status(404).json({ message: 'Caso não encontrado.' });
         }
+        
         const dadosValidados = casoPatchSchema.parse(req.body);
+        
         if (dadosValidados.agente_id) {
             const agenteExiste = agentesRepository.findById(dadosValidados.agente_id);
             if (!agenteExiste) {
@@ -153,6 +133,7 @@ function atualizarParcialmenteCaso(req, res) {
                 });
             }
         }
+        
         const casoAtualizado = casosRepository.update(id, dadosValidados);
         res.status(200).json(casoAtualizado);
         
@@ -166,8 +147,7 @@ function atualizarParcialmenteCaso(req, res) {
                 }))
             });
         }
-        console.error('Erro inesperado:', error);
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        next(error);
     }
 }
 

@@ -1,24 +1,19 @@
 // controllers/agentesController.js
 
-//zod
 const agentesRepository = require('../repositories/agentesRepository');
 const { z } = require('zod');
 
-// FUNÇÃO CORRIGIDA: Validação de data mais robusta
 function isDataValida(data) {
+    
     const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(data)) return false; // Mantém a verificação de formato
-
-    const dataObj = new Date(data + 'T00:00:00Z'); 
+    if (!regex.test(data)) return false;
+    const dataObj = new Date(data);
     if (dataObj.toISOString().slice(0, 10) !== data) {
         return false;
     }
-
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Normaliza a data de hoje para comparar apenas o dia
-
-    // Garante que a data de incorporação não seja no futuro
-    return dataObj <= hoje;
+     const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); 
+    return new Date(data) <= hoje;
 }
 
 // Schema para POST e PUT (todos os campos obrigatórios)
@@ -32,7 +27,7 @@ const agenteSchema = z.object({
     required_error: "O campo 'dataDeIncorporacao' é obrigatório.",
     invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." 
   }).refine(isDataValida, { 
-    message: "Formato da dataDeIncorporacao inválido, data inválida ou data no futuro." // Mensagem de erro melhorada
+    message: "O campo 'dataDeIncorporacao' deve estar no formato YYYY-MM-DD, ser uma data válida e não pode ser no futuro." 
   }),
   
   cargo: z.string({ 
@@ -41,42 +36,12 @@ const agenteSchema = z.object({
   }).min(1, "O campo 'cargo' não pode ser vazio."),
 }).strict({ message: "O corpo da requisição contém campos não permitidos." });
 
-const agentePatchSchema = z.object({
-  nome: z.string({ 
-    required_error: "O campo 'nome' é obrigatório.",
-    invalid_type_error: "O campo 'nome' deve ser uma string." 
-  }).min(1, "O campo 'nome' não pode ser vazio.").optional(),
-  
-  dataDeIncorporacao: z.string({ 
-    required_error: "O campo 'dataDeIncorporacao' é obrigatório.",
-    invalid_type_error: "O campo 'dataDeIncorporacao' deve ser uma string." 
-  }).refine(isDataValida, { 
-    message: "Formato da dataDeIncorporacao inválido, data inválida ou data no futuro." // Mensagem de erro melhorada
-  }).optional(),
-  
-  cargo: z.string({ 
-    required_error: "O campo 'cargo' é obrigatório.",
-    invalid_type_error: "O campo 'cargo' deve ser uma string." 
-  }).min(1, "O campo 'cargo' não pode ser vazio.").optional(),
-}).strict({ message: "O corpo da requisição contém campos não permitidos." }); // Rejeita campos extras
+// Schema para PATCH, derivado do principal, mas com todos os campos opcionais.
+const agentePatchSchema = agenteSchema.partial().strict({ message: "O corpo da requisição contém campos não permitidos." });
 
 
 // GET /agentes
 function listarAgentes(req, res) {
-    const { sort, cargo } = req.query;
-    
-    if (sort && !['dataDeIncorporacao', '-dataDeIncorporacao'].includes(sort)) {
-        return res.status(400).json({ 
-            message: "Parâmetro 'sort' inválido. Use 'dataDeIncorporacao' ou '-dataDeIncorporacao'." 
-        });
-    }
-    
-    if (cargo && !['inspetor', 'delegado', 'investigador'].includes(cargo)) {
-        return res.status(400).json({ 
-            message: "Parâmetro 'cargo' inválido. Use 'inspetor', 'delegado' ou 'investigador'." 
-        });
-    }
-
     const agentes = agentesRepository.findAll(req.query);
     res.status(200).json(agentes);
 }
@@ -92,39 +57,38 @@ function buscarAgentePorId(req, res) {
 }
 
 // POST /agentes
-function criarAgente(req, res) {
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
-    }
-
+function criarAgente(req, res, next) {
     try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+        }
         const dadosValidados = agenteSchema.parse(req.body);
         const novoAgente = agentesRepository.create(dadosValidados);
         res.status(201).json(novoAgente);
     } catch (error) {
+        // Se a validação do Zod falhar, retorna 400 com os erros detalhados.
         if (error instanceof z.ZodError) {
             return res.status(400).json({
                 message: "Payload inválido.",
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        // Para outros erros, passa para o errorHandler global.
+        next(error);
     }
 }
 
 // PUT /agentes/:id (Atualização Completa) 
-function atualizarAgente(req, res) {
-    const { id } = req.params;
-
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
-    }
-
-    if ('id' in req.body) {
-        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
-    }
-
+function atualizarAgente(req, res, next) {
     try {
+        const { id } = req.params;
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: "Corpo da requisição não pode ser vazio." });
+        }
+        if ('id' in req.body) {
+            return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+        }
+
         const dadosValidados = agenteSchema.parse(req.body);
         
         const agenteAtualizado = agentesRepository.update(id, dadosValidados);
@@ -139,35 +103,29 @@ function atualizarAgente(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        next(error);
     }
 }
 
 // PATCH /agentes/:id (Atualização Parcial)
-function atualizarParcialmenteAgente(req, res) {
-    const { id } = req.params;
-    
-    if (Object.keys(req.body).length === 0) {
-        return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
-    }
-    
-    if ('id' in req.body) {
-        return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
-    }
-    
+function atualizarParcialmenteAgente(req, res, next) {
     try {
-        // Valida o corpo da requisição com o schema de patch
-        const dadosValidados = agentePatchSchema.parse(req.body);
-
-        // Verifica primeiro se o agente que se deseja atualizar existe
+        const { id } = req.params;
+        if (Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: 'Corpo da requisição não pode ser vazio.' });
+        }
+        if ('id' in req.body) {
+            return res.status(400).json({ message: 'Não é permitido alterar o campo id.' });
+        }
+        
         const agenteExiste = agentesRepository.findById(id);
         if (!agenteExiste) {
             return res.status(404).json({ message: `Agente com id ${id} não encontrado.` });
         }
 
+        const dadosValidados = agentePatchSchema.parse(req.body);
         const agenteAtualizado = agentesRepository.update(id, dadosValidados);
         res.status(200).json(agenteAtualizado);
-
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({
@@ -175,8 +133,7 @@ function atualizarParcialmenteAgente(req, res) {
                 errors: error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
             });
         }
-        console.error('Erro inesperado:', error);
-        return res.status(500).json({ message: "Erro interno do servidor." });
+        next(error);
     }
 }
 
